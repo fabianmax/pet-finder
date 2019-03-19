@@ -1,1 +1,1 @@
-# Pet Finder
+# Pet Finder Kaggle Competition
