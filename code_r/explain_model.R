@@ -59,8 +59,10 @@ ggsave("~/Desktop/feature_imp.png", width = 19, height = 13, units = "cm")
 # Feature effects ---------------------------------------------------------
 
 # PDP
-iml::FeatureEffect$new(xgb_predictor, feature = "age", method = "pdp") %>% 
-  .$results %>% 
+xgb_pdp <- iml::FeatureEffect$new(xgb_predictor, feature = "age", method = "pdp") %>% 
+  .$results
+
+xgb_pdp %>% 
   ggplot(aes(x = age, y = .y.hat)) + 
   geom_line(color = light_blue,
             size = 1,
@@ -76,8 +78,10 @@ iml::FeatureEffect$new(xgb_predictor, feature = "age", method = "pdp") %>%
 ggsave("~/Desktop/feature_pdp.png", width = 19, height = 13, units = "cm")
 
 # ICE
-iml::FeatureEffect$new(xgb_predictor, feature = "age", method = "ice") %>% 
-  .$results %>% 
+xgb_ice <- iml::FeatureEffect$new(xgb_predictor, feature = "age", method = "ice") %>% 
+  .$results
+
+xgb_ice %>% 
   dplyr::filter(.id %in% sample(.$.id, 1000)) %>% 
   ggplot() + 
   geom_line(aes(x = age, y = .y.hat, group = .id, color = .id),
@@ -88,10 +92,11 @@ iml::FeatureEffect$new(xgb_predictor, feature = "age", method = "ice") %>%
   coord_cartesian(xlim = c(0, 150)) + 
   labs(x = "Age (in months)", y = "Prediction P(y=1)") + 
   theme_minimal() + 
-  geom_smooth(aes(x = age, y = .y.hat), 
-              color = statworx_blue, 
-              fill = "white",
-              lty = "solid")
+  geom_line(aes(x = age, y = .y.hat),
+            data = xgb_pdp,
+            color = statworx_blue, 
+            lty = "solid",
+            size = 1)
 
 ggsave("~/Desktop/feature_ice.png", width = 19, height = 13, units = "cm")
 

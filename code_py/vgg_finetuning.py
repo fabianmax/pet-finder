@@ -1,14 +1,21 @@
 import pandas as pd
 import numpy as np
 import os, fnmatch
+import datetime
 import matplotlib.pyplot as plt
+import json
 
 import keras
 from keras_preprocessing.image import ImageDataGenerator
 from keras.applications import VGG16
-from keras.models import Model
+from keras.models import Model, load_model
 from keras.layers import Dropout, Flatten, Dense
 from keras.optimizers import Adam
+from keras.callbacks import EarlyStopping, ModelCheckpoint
+from keras import backend as K
+
+# Check for GPUs on GC
+K.tensorflow_backend._get_available_gpus()
 
 # Load data
 df_train = pd.read_pickle('data/prepared/train.pkl')
@@ -17,7 +24,7 @@ df_train = pd.read_pickle('data/prepared/train.pkl')
 BATCH_SIZE = 64
 
 # Path and files
-train_images_path = 'data/raw/images/train_images'
+train_images_path = '/home/fabianmueller/pet_finder/data/raw/images/train_images'
 train_images = fnmatch.filter(os.listdir(train_images_path), '*.jpg')
 
 # Make binary target
@@ -72,7 +79,10 @@ valid_generator = data_gen.flow_from_dataframe(dataframe=df_generator_valid,
 STEPS_PER_ECHO_TRAIN = np.ceil(train_generator.n / BATCH_SIZE)
 STEPS_PER_ECHO_VALID = np.ceil(valid_generator.n / BATCH_SIZE)
 
-# Model
+# Number of steps per echo
+STEPS_PER_ECHO = np.ceil(train_generator.n / BATCH_SIZE)
+
+# VGG model including imagenet weights
 model = VGG16(include_top=False,
               weights='imagenet',
               input_shape=(224, 224, 3))
@@ -81,7 +91,7 @@ model = VGG16(include_top=False,
 for layer in model.layers:
     layer.trainable = False
 
-# Adding new output layer
+# Adding new dense and output layer (simple version)
 x = model.output
 x = Flatten()(x)
 x = Dense(256, activation="relu")(x)
@@ -90,20 +100,40 @@ x = Dense(256, activation="relu")(x)
 x = Dropout(0.3)(x)
 p = Dense(2, activation="softmax")(x)
 
-# creating the final model
+# Creating the final model
 model_final = Model(input=model.input, output=p)
 
-# compile the model
+# Compile the model
 model_final.compile(loss="categorical_crossentropy",
                     optimizer=Adam(0.0001),
                     metrics=["accuracy"])
 
-# Training
+# Checkpointing
+filepath = "checkpoints/weights.{epoch:02d}-{val_loss:.2f}.hdf5" 
+checkpoint = ModelCheckpoint(filepath, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
+
+# Earlystopping
+earlystopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=10)
+
+# Combine callbacks
+callbacks_list = [checkpoint, earlystopping]
+
+# Fit model (hopefully earlystopping will kick in)
 hist = model_final.fit_generator(train_generator,
-                                 epochs=1,
+                                 epochs=100,
                                  steps_per_epoch=STEPS_PER_ECHO_TRAIN,
                                  validation_data=valid_generator,
-                                 validation_steps=STEPS_PER_ECHO_VALID)
+                                 validation_steps=STEPS_PER_ECHO_VALID,
+                                 callbacks=callbacks_list)
+
+
+# Save model
+name = datetime.datetime.today().strftime('%Y-%m-%d')
+model_final.save(name + '_model_final.h5')
+
+# Save history
+with open(name + 'hist_final.json', 'w') as f:
+    json.dump(hist.history, f)
 
 
 # Plot learning history
@@ -112,5 +142,5 @@ plt.plot(hist.history['val_acc'])
 plt.title('model accuracy')
 plt.ylabel('accuracy')
 plt.xlabel('epoch')
-plt.legend(['train', 'test'], loc='upper left')
+plt.legend(['train', 'valid'], loc='upper left')
 plt.show()
