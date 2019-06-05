@@ -67,17 +67,18 @@ class ModelXGB:
 
     def train(self, X_train, y_train, X_valid=None, y_valid=None, params=None, **kwargs):
 
-        train_data = xgb.DMatrix(X_train, y_train)
+        train_data = xgb.DMatrix(X_train, label=y_train)
 
         watchlist = [(train_data, 'train')]
 
         if X_valid is not None and y_valid is not None:
-            valid_data = xgb.DMatrix(X_valid, y_valid)
+            valid_data = xgb.DMatrix(X_valid, label=y_valid)
             watchlist.append((valid_data, 'valid'))
             stopping_rounds = 10
         else:
             stopping_rounds = None
-
+        print(X_train.shape)
+        print(y_train.shape)
         self.mod = xgb.train(params=params,
                              dtrain=train_data,
                              evals=watchlist,
@@ -107,12 +108,12 @@ class ModelLGB:
 
     def train(self, X_train, y_train, X_valid=None, y_valid=None, params=None, **kwargs):
 
-        train_data = lgb.Dataset(X_train, y_train)
+        train_data = lgb.Dataset(X_train, label=y_train)
 
         watchlist = [train_data]
 
         if X_valid is not None and y_valid is not None:
-            valid_data = lgb.Dataset(X_valid, y_valid)
+            valid_data = lgb.Dataset(X_valid, label=y_valid)
             watchlist.append(valid_data)
             stopping_rounds = 10
         else:
@@ -129,9 +130,10 @@ class ModelLGB:
 
     def predict(self, X_test):
 
+        # lgb does not take lgb.Dataset() as input for predict method
         y_hat = self.mod.predict(X_test)
-        # Prob to class
-        y_hat = np.argmax(y_hat, axis=1)
+        # Prob to class (not needed for binary classification)
+        #y_hat = np.argmax(y_hat, axis=1)
 
         return y_hat
 
@@ -147,12 +149,12 @@ class ModelCat:
 
     def train(self, X_train, y_train, X_valid=None, y_valid=None, params=None, **kwargs):
 
-        train_data = cat.Pool(X_train, y_train, cat_features=None)
+        train_data = cat.Pool(X_train, label=y_train, cat_features=None)
 
         watchlist = [train_data]
 
         if X_valid is not None and y_valid is not None:
-            valid_data = cat.Pool(X_valid, y_valid, cat_features=None)
+            valid_data = cat.Pool(X_valid, label=y_valid, cat_features=None)
             watchlist.append(valid_data)
             stopping_rounds = 10
         else:
@@ -171,8 +173,8 @@ class ModelCat:
 
         test_data = cat.Pool(X_test, cat_features=None)
         y_hat = self.mod.predict(test_data)
-        # Prob to class
-        y_hat = np.argmax(y_hat, axis=1)
+        # Prob to class (not needed for binary classification)
+        #y_hat = np.argmax(y_hat, axis=1)
 
         return y_hat
 

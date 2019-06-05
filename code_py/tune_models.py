@@ -2,8 +2,19 @@ import pandas as pd
 import numpy as np
 
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import log_loss
+from sklearn.metrics import log_loss, roc_auc_score
+from sklearn.linear_model import LogisticRegression
 from code_py.define_models import ModelXGB, ModelLGB, ModelCat, cv
+
+import xgboost as xgb
+import catboost as cat
+
+# ============================
+# Data loading and preparation
+# ============================
+
+# Load data
+df_train = pd.read_pickle('data/prepared/train.pkl')
 
 # Features
 features = ['age',
@@ -43,12 +54,25 @@ X = X.loc[:, features]
 X_train, X_test, y_train, y_test = train_test_split(X, y)
 
 
-# XGB test
+# =================
+# Fit linear model
+# =================
+
+log_best = LogisticRegression(C=1e8, solver='lbfgs').fit(X_train, y_train)
+
+log_p = log_best.predict_proba(X_test)
+
+log_auc_score = roc_auc_score(y_test, log_p[:, 1])
+
+
+# =================
+# Fit XGBoost model
+# =================
+
 params = {'n_estimators': [50, 100, 200],
           'max_depth': [1, 3, 6, 9],
           'reg_lambda': [0.0, 0.01, 0.001],
           'objective': ['binary:logistic'],
-          'num_class': [5],
           'silent': 1}
 
 xgb_best, xgb_params_best, xgb_cv_result = cv(X_train,
@@ -58,13 +82,19 @@ xgb_best, xgb_params_best, xgb_cv_result = cv(X_train,
                                               eval_fn=log_loss,
                                               params=params)
 
+xgb_p = xgb_best.predict(xgb.DMatrix(X_test))
 
-# LGB Test
-params = {'n_estimators': [50, 100, 200],
+xgb_auc_score = roc_auc_score(y_test, xgb_p)
+
+
+# =================
+# Fit LightGM model
+# =================
+
+params = {'num_iterations': [50, 100, 200],
           'num_leaves': list(np.power(2, [1, 3, 6, 9])),
           'reg_lambda': [0.0, 0.01, 0.001],
           'objective': 'binary',
-          'num_class': 5,
           'verbose': -1}
 
 lgb_best, lgb_params_best, lgb_cv_result = cv(X_train,
@@ -74,8 +104,15 @@ lgb_best, lgb_params_best, lgb_cv_result = cv(X_train,
                                               eval_fn=log_loss,
                                               params=params)
 
+lgb_p = lgb_best.predict(X_test)
 
-# Cat Test
+lgb_auc_score = roc_auc_score(y_test, lgb_p)
+
+
+# =================
+# Fit CatBoost model
+# =================
+
 params = {'iterations': [50, 100, 200],
           'depth': [1, 3, 6, 9],
           'l2_leaf_reg': [0.0, 0.01, 0.001],
@@ -88,4 +125,7 @@ cat_best, cat_params_best, cat_cv_result = cv(X_train,
                                               eval_fn=log_loss,
                                               params=params)
 
+cat_p = cat_best.predict(cat.Pool(X_test))
+
+cat_auc_score = roc_auc_score(y_test, cat_p)
 
