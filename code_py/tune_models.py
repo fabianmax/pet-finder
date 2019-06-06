@@ -69,8 +69,8 @@ log_auc_score = roc_auc_score(y_test, log_p[:, 1])
 # Fit XGBoost model
 # =================
 
-params = {'n_estimators': [50, 100, 200],
-          'max_depth': [1, 3, 6, 9],
+params = {'n_estimators': [100, 200, 300, 500],
+          'max_depth': [1, 3, 6, 9, 12],
           'reg_lambda': [0.0, 0.01, 0.001],
           'objective': ['binary:logistic'],
           'silent': 1}
@@ -91,8 +91,8 @@ xgb_auc_score = roc_auc_score(y_test, xgb_p)
 # Fit LightGM model
 # =================
 
-params = {'num_iterations': [50, 100, 200],
-          'num_leaves': list(np.power(2, [1, 3, 6, 9])),
+params = {'num_iterations': [100, 200, 300, 500],
+          'num_leaves': list(np.power(2, [1, 3, 6, 9, 12])),
           'reg_lambda': [0.0, 0.01, 0.001],
           'objective': 'binary',
           'verbose': -1}
@@ -113,7 +113,7 @@ lgb_auc_score = roc_auc_score(y_test, lgb_p)
 # Fit CatBoost model
 # =================
 
-params = {'iterations': [50, 100, 200],
+params = {'iterations': [100, 200, 300],
           'depth': [1, 3, 6, 9],
           'l2_leaf_reg': [0.0, 0.01, 0.001],
           'loss_function': 'Logloss'}
@@ -128,4 +128,13 @@ cat_best, cat_params_best, cat_cv_result = cv(X_train,
 cat_p = cat_best.predict(cat.Pool(X_test))
 
 cat_auc_score = roc_auc_score(y_test, cat_p)
+
+# ==============
+# Compare models
+# ==============
+
+print('AUC logistic regression: {}'.format(round(log_auc_score, 3)))
+print('AUC XGBoost: {}'.format(round(xgb_auc_score, 3)))
+print('AUC LightGBM: {}'.format(round(lgb_auc_score, 3)))
+print('AUC CatBoost: {}'.format(round(cat_auc_score, 3)))
 

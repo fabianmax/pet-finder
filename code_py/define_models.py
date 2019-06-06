@@ -149,12 +149,19 @@ class ModelCat:
 
     def train(self, X_train, y_train, X_valid=None, y_valid=None, params=None, **kwargs):
 
-        train_data = cat.Pool(X_train, label=y_train, cat_features=None)
+        # Check if cat_features are in params and extract if so
+        if 'cat_features' in params:
+            cat_features_idx = params['cat_features']
+            del params['cat_features']
+        else:
+            cat_features_idx = None
+
+        train_data = cat.Pool(X_train, label=y_train, cat_features=cat_features_idx)
 
         watchlist = [train_data]
 
         if X_valid is not None and y_valid is not None:
-            valid_data = cat.Pool(X_valid, label=y_valid, cat_features=None)
+            valid_data = cat.Pool(X_valid, label=y_valid, cat_features=cat_features_idx)
             watchlist.append(valid_data)
             stopping_rounds = 10
         else:
