@@ -3,7 +3,7 @@ import numpy as np
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import log_loss, roc_auc_score
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, RidgeCV
 from code_py.define_models import ModelXGB, ModelLGB, ModelCat, cv
 
 import xgboost as xgb
@@ -64,6 +64,22 @@ log_p = log_best.predict_proba(X_test)
 
 log_auc_score = roc_auc_score(y_test, log_p[:, 1])
 
+# Feature importance
+log_imp = np.abs(log_best.coef_) * np.std(y) / np.std(X.values, axis=0)
+log_imp = (log_imp - np.min(log_imp)) / (np.max(log_imp) - np.min(log_imp)) * 100
+log_imp = pd.DataFrame({'importance': log_imp.flatten()}, index=X.columns.values)
+log_imp.sort_values(by='importance', ascending=False)
+
+# =================
+# Fit ridge model
+# =================
+
+ridge_cv = RidgeCV(alphas=[0.0001, 1, 10, 100, 1000]).fit(X_train, y_train)
+
+ridge_p = ridge_cv.predict(X_test)
+
+ridge_auc_score = roc_auc_score(y_test, ridge_p)
+
 
 # =================
 # Fit XGBoost model
@@ -86,6 +102,10 @@ xgb_p = xgb_best.predict(xgb.DMatrix(X_test))
 
 xgb_auc_score = roc_auc_score(y_test, xgb_p)
 
+# Feature importance
+xgb_imp = xgb_best.get_fscore()
+xgb_imp = pd.DataFrame({'importance': list(xgb_imp.values())}, index=list(xgb_imp.keys()))
+xgb_imp.sort_values(by='importance', ascending=False)
 
 # =================
 # Fit LightGM model
